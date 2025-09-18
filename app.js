@@ -15,6 +15,7 @@ app.use((req, res, next) => {
     "Access-Control-Allow-Headers",
     "Content-Type, x-ingest-token, Authorization"
   );
+  res.header("Access-Control-Allow-Credentials", "true");
 
   if (req.method === "OPTIONS") {
     res.sendStatus(200);
@@ -22,8 +23,6 @@ app.use((req, res, next) => {
     next();
   }
 });
-
-app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: "10mb" }));
 
 const pool = new Pool({
