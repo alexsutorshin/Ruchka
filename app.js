@@ -14,7 +14,7 @@ app.use(
     hsts: {
       maxAge: 31536000,
       includeSubDomains: true,
-      preload: true
+      preload: true,
     },
     contentSecurityPolicy: {
       directives: {
@@ -160,45 +160,53 @@ const httpsPort = process.env.HTTPS_PORT || 3443;
 function startHttpsServer() {
   try {
     // Try to load SSL certificates
-    const privateKey = fs.readFileSync(process.env.SSL_KEY_PATH || '/etc/ssl/private/server.key', 'utf8');
-    const certificate = fs.readFileSync(process.env.SSL_CERT_PATH || '/etc/ssl/certs/server.crt', 'utf8');
-    
+    const privateKey = fs.readFileSync(
+      process.env.SSL_KEY_PATH || "/etc/ssl/private/server.key",
+      "utf8"
+    );
+    const certificate = fs.readFileSync(
+      process.env.SSL_CERT_PATH || "/etc/ssl/certs/server.crt",
+      "utf8"
+    );
+
     const credentials = {
       key: privateKey,
       cert: certificate,
       // Modern TLS configuration
-      secureProtocol: 'TLSv1_2_method',
+      secureProtocol: "TLSv1_2_method",
       ciphers: [
-        'ECDHE-RSA-AES128-GCM-SHA256',
-        'ECDHE-RSA-AES256-GCM-SHA384',
-        'ECDHE-RSA-AES128-SHA256',
-        'ECDHE-RSA-AES256-SHA384',
-        '!aNULL',
-        '!eNULL',
-        '!EXPORT',
-        '!DES',
-        '!RC4',
-        '!MD5',
-        '!PSK',
-        '!SRP',
-        '!CAMELLIA'
-      ].join(':'),
-      honorCipherOrder: true
+        "ECDHE-RSA-AES128-GCM-SHA256",
+        "ECDHE-RSA-AES256-GCM-SHA384",
+        "ECDHE-RSA-AES128-SHA256",
+        "ECDHE-RSA-AES256-SHA384",
+        "!aNULL",
+        "!eNULL",
+        "!EXPORT",
+        "!DES",
+        "!RC4",
+        "!MD5",
+        "!PSK",
+        "!SRP",
+        "!CAMELLIA",
+      ].join(":"),
+      honorCipherOrder: true,
     };
 
     const httpsServer = https.createServer(credentials, app);
-    
+
     httpsServer.listen(httpsPort, () => {
       console.log(`HTTPS Server listening on port ${httpsPort}`);
       console.log(`SSL/TLS enabled with modern cipher suites`);
     });
 
-    httpsServer.on('error', (err) => {
-      console.error('HTTPS Server error:', err);
+    httpsServer.on("error", (err) => {
+      console.error("HTTPS Server error:", err);
     });
-
   } catch (error) {
-    console.warn('SSL certificates not found, starting HTTP server only:', error.message);
+    console.warn(
+      "SSL certificates not found, starting HTTP server only:",
+      error.message
+    );
     startHttpServer();
   }
 }
@@ -211,7 +219,10 @@ function startHttpServer() {
 }
 
 // Start servers based on environment
-if (process.env.NODE_ENV === 'production' && process.env.ENABLE_HTTPS !== 'false') {
+if (
+  process.env.NODE_ENV === "production" &&
+  process.env.ENABLE_HTTPS !== "false"
+) {
   startHttpsServer();
   // Also start HTTP server for fallback
   startHttpServer();
