@@ -110,9 +110,10 @@ app.post("/rrweb/events", authMiddleware, async (req, res) => {
         "on conflict (session_id, event_index) do nothing";
 
       let stored = 0;
-      for (const ev of events) {
+      for (let i = 0; i < events.length; i++) {
+        const ev = events[i];
         const ts = typeof ev.timestamp === "number" ? ev.timestamp : Date.now();
-        const idx = typeof ev.__idx === "number" ? ev.__idx : null;
+        const idx = typeof ev.__idx === "number" ? ev.__idx : i;
         const type = Number.isFinite(ev.type) ? Number(ev.type) : 0;
         const r = await client.query(insertOne, [
           sessionDbId,
