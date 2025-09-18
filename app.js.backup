@@ -2,47 +2,11 @@ const express = require("express");
 const { Pool } = require("pg");
 const helmet = require("helmet");
 const cors = require("cors");
-const https = require("https");
-const fs = require("fs");
 require("dotenv").config();
 
 const app = express();
-app.use(
-  helmet({
-    crossOriginResourcePolicy: false,
-    crossOriginOpenerPolicy: false,
-    hsts: {
-      maxAge: 31536000,
-      includeSubDomains: true,
-      preload: true
-    },
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:", "https:"],
-      },
-    },
-  })
-);
-
-// CORS middleware
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Content-Type, x-ingest-token, Authorization"
-  );
-  res.header("Access-Control-Allow-Credentials", "false");
-
-  if (req.method === "OPTIONS") {
-    res.sendStatus(200);
-  } else {
-    next();
-  }
-});
+app.use(helmet());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: "10mb" }));
 
 const pool = new Pool({
@@ -154,67 +118,6 @@ app.get("/rrweb/sessions/:externalId/events", async (req, res) => {
 });
 
 const port = process.env.PORT || 3000;
-const httpsPort = process.env.HTTPS_PORT || 3443;
-
-// Function to start HTTPS server
-function startHttpsServer() {
-  try {
-    // Try to load SSL certificates
-    const privateKey = fs.readFileSync(process.env.SSL_KEY_PATH || '/etc/ssl/private/server.key', 'utf8');
-    const certificate = fs.readFileSync(process.env.SSL_CERT_PATH || '/etc/ssl/certs/server.crt', 'utf8');
-    
-    const credentials = {
-      key: privateKey,
-      cert: certificate,
-      // Modern TLS configuration
-      secureProtocol: 'TLSv1_2_method',
-      ciphers: [
-        'ECDHE-RSA-AES128-GCM-SHA256',
-        'ECDHE-RSA-AES256-GCM-SHA384',
-        'ECDHE-RSA-AES128-SHA256',
-        'ECDHE-RSA-AES256-SHA384',
-        '!aNULL',
-        '!eNULL',
-        '!EXPORT',
-        '!DES',
-        '!RC4',
-        '!MD5',
-        '!PSK',
-        '!SRP',
-        '!CAMELLIA'
-      ].join(':'),
-      honorCipherOrder: true
-    };
-
-    const httpsServer = https.createServer(credentials, app);
-    
-    httpsServer.listen(httpsPort, () => {
-      console.log(`HTTPS Server listening on port ${httpsPort}`);
-      console.log(`SSL/TLS enabled with modern cipher suites`);
-    });
-
-    httpsServer.on('error', (err) => {
-      console.error('HTTPS Server error:', err);
-    });
-
-  } catch (error) {
-    console.warn('SSL certificates not found, starting HTTP server only:', error.message);
-    startHttpServer();
-  }
-}
-
-// Function to start HTTP server
-function startHttpServer() {
-  app.listen(port, () => {
-    console.log(`HTTP Server listening on port ${port}`);
-  });
-}
-
-// Start servers based on environment
-if (process.env.NODE_ENV === 'production' && process.env.ENABLE_HTTPS !== 'false') {
-  startHttpsServer();
-  // Also start HTTP server for fallback
-  startHttpServer();
-} else {
-  startHttpServer();
-}
+app.listen(port, () => {
+  console.log("rrweb ingest listening on :" + port);
+});

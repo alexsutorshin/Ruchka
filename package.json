@@ -6,5 +6,8 @@
   "type": "commonjs",
   "scripts": {
     "start": "node app.js"
+  },
+  "dependencies": {
+    "https": "^1.0.0"
   }
 }
