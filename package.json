@@ -1,0 +1,10 @@
+{
+  "name": "rrweb-ingest",
+  "version": "1.0.0",
+  "main": "app.js",
+  "license": "MIT",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node app.js"
+  }
+}

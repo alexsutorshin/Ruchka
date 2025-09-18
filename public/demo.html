@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+  <head><meta charset="utf-8"><title>rrweb demo</title></head>
+  <body>
+    <h1>rrweb demo</h1>
+    <script src="https://unpkg.com/rrweb@latest/dist/rrweb.min.js"></script>
+    <script>
+      (function () {
+        const sessionId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
+        const buffer = [];
+        let idx = 0;
+
+        rrweb.record({
+          emit(event) {
+            event.__idx = idx++;
+            buffer.push(event);
+          }
+        });
+
+        async function flush() {
+          if (buffer.length === 0) return;
+          const batch = buffer.splice(0, buffer.length);
+          try {
+            await fetch('http://204.12.205.239:3000/rrweb/events', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-ingest-token': 'change_me'
+              },
+              body: JSON.stringify({
+                sessionId: sessionId,
+                metadata: { userAgent: navigator.userAgent, referrer: document.referrer || null },
+                events: batch
+              }),
+              keepalive: true
+            });
+          } catch (e) {
+            for (var i = 0; i < batch.length; i++) buffer.push(batch[i]);
+          }
+        }
+
+        setInterval(flush, 3000);
+        window.addEventListener('visibilitychange', function () {
+          if (document.visibilityState === 'hidden') flush();
+        });
+        window.addEventListener('pagehide', flush);
+      })();
+    </script>
+  </body>
+</html>
