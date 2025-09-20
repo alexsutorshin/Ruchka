@@ -111,8 +111,8 @@ app.post("/rrweb/events", authMiddleware, async (req, res) => {
       const sessionDbId = sess.rows[0].id;
 
       const insertOne =
-        "insert into events (session_id, event_index, ts_ms, type, data)\n" +
-        "values ($1, $2, $3, $4, $5::jsonb)\n" +
+        "insert into events (session_id, event_index, ts_ms, type, data, created_at)\n" +
+        "values ($1, $2, $3, $4, $5::jsonb, NOW())\n" +
         "on conflict (session_id, event_index) do nothing";
 
       let stored = 0;
@@ -150,7 +150,7 @@ app.get("/rrweb/sessions/:externalId/events", async (req, res) => {
   const externalId = req.params.externalId;
   const limit = Math.min(parseInt(req.query.limit || "1000", 10), 5000);
   const q =
-    "select e.ts_ms, e.type, e.data\n" +
+    "select e.ts_ms, e.type, e.data, e.created_at\n" +
     "from sessions s\n" +
     "join events e on e.session_id = s.id\n" +
     "where s.external_id = $1\n" +
