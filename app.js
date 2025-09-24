@@ -112,7 +112,7 @@ app.post("/rrweb/events", authMiddleware, async (req, res) => {
 
       const insertOne =
         "insert into events (session_id, event_index, ts_ms, type, data, created_at)\n" +
-        "values ($1, $2, $3, $4, $5::jsonb, NOW())\n" +
+        "values ($1, $2, $3, $4, $5::jsonb, to_timestamp($3/1000.0))\n" +
         "on conflict (session_id, event_index) do nothing";
 
       let stored = 0;
