@@ -114,78 +114,67 @@ app.post("/rrweb/events", authMiddleware, async (req, res) => {
 
       const insertOne =
         "insert into events (session_id, event_index, ts_ms, type, data, created_at)\n" +
-        "values ($1, $2, $3, $4, $5::jsonb, to_timestamp($6/1000.0))\n" +
-        "on conflict (session_id, event_index) do nothing";
+        "values ($1, $2, $3, $4, $5::jsonb, to_timestamp($6/1000.0))";
 
-      // Объединяем все события и сортируем по времени
-      const allEvents = [];
-
-      // Добавляем обычные события
+      let stored = 0;
+      
+      // Вставляем обычные события
       for (let i = 0; i < events.length; i++) {
         const ev = events[i];
         const ts = typeof ev.timestamp === "number" ? ev.timestamp : Date.now();
-        allEvents.push({
-          type: Number.isFinite(ev.type) ? Number(ev.type) : 0,
-          timestamp: ts,
-          data: ev,
-          originalIndex: typeof ev.__idx === "number" ? ev.__idx : i,
-        });
-      }
-
-      // Добавляем console logs
-      for (let i = 0; i < consoleLogs.length; i++) {
-        const log = consoleLogs[i];
-        const timestamp =
-          typeof log.timestamp === "number" ? log.timestamp : Date.now();
-        const logData = {
-          level: log.level || "log",
-          message: log.message || "",
-          url: log.url || null,
-          source: "console",
-        };
-        allEvents.push({
-          type: 5, // type 5 для console logs
-          timestamp: timestamp,
-          data: logData,
-          originalIndex: i,
-        });
-      }
-
-      // Сортируем все события по времени
-      allEvents.sort((a, b) => a.timestamp - b.timestamp);
-
-      console.log(
-        `Processing ${allEvents.length} events for session ${sessionId}:`,
-        allEvents.map((e) => ({ type: e.type, timestamp: e.timestamp }))
-      );
-
-      // Вставляем события с хронологическими индексами
-      let stored = 0;
-      for (let i = 0; i < allEvents.length; i++) {
-        const event = allEvents[i];
+        const idx = typeof ev.__idx === "number" ? ev.__idx : i;
+        const type = Number.isFinite(ev.type) ? Number(ev.type) : 0;
+        
         try {
-          const timestampForCreatedAt = event.timestamp; // Отдельная переменная для created_at
           const r = await client.query(insertOne, [
             sessionDbId,
-            i, // Хронологический event_index
-            event.timestamp,
-            event.type,
-            JSON.stringify(event.data),
-            timestampForCreatedAt, // Отдельная переменная для created_at
+            idx,
+            ts,
+            type,
+            JSON.stringify(ev),
+            ts,
           ]);
-          console.log(
-            `Inserted event ${i}: type=${event.type}, rows=${r.rowCount}`
-          );
+          console.log(`Inserted event ${i}: type=${type}, rows=${r.rowCount}`);
           stored += r.rowCount || 0;
         } catch (insertError) {
           console.error(`Error inserting event ${i}:`, insertError.message);
           throw insertError;
         }
       }
+      
+      // Вставляем console logs
+      for (let i = 0; i < consoleLogs.length; i++) {
+        const log = consoleLogs[i];
+        const timestamp = typeof log.timestamp === "number" ? log.timestamp : Date.now();
+        const logData = {
+          level: log.level || "log",
+          message: log.message || "",
+          url: log.url || null,
+          source: "console",
+        };
+        
+        try {
+          const r = await client.query(insertOne, [
+            sessionDbId,
+            -1000 - i, // Используем отрицательные индексы для console logs
+            timestamp,
+            5, // type 5 для console logs
+            JSON.stringify(logData),
+            timestamp,
+          ]);
+          console.log(`Inserted console log ${i}: type=5, rows=${r.rowCount}`);
+          stored += r.rowCount || 0;
+        } catch (insertError) {
+          console.error(`Error inserting console log ${i}:`, insertError.message);
+          throw insertError;
+        }
+      }
 
       console.log(`About to commit transaction. Stored ${stored} events.`);
       await client.query("COMMIT");
-      console.log(`Transaction committed successfully. Returning ${stored} stored events.`);
+      console.log(
+        `Transaction committed successfully. Returning ${stored} stored events.`
+      );
       return res.status(201).json({ stored });
     } catch (e) {
       console.error("Error in transaction, rolling back:", e);
