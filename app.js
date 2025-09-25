@@ -73,10 +73,12 @@ app.post("/rrweb/events", authMiddleware, async (req, res) => {
     const sessionId = body.sessionId;
     const metadata = body.metadata || {};
     const events = Array.isArray(body.events) ? body.events : [];
-    if (!sessionId || events.length === 0) {
+    const consoleLogs = Array.isArray(body.consoleLogs) ? body.consoleLogs : [];
+    
+    if (!sessionId || (events.length === 0 && consoleLogs.length === 0)) {
       return res
         .status(400)
-        .json({ error: "sessionId and non-empty events[] are required" });
+        .json({ error: "sessionId and non-empty events[] or consoleLogs[] are required" });
     }
 
     const client = await pool.connect();
@@ -128,6 +130,28 @@ app.post("/rrweb/events", authMiddleware, async (req, res) => {
           type,
           JSON.stringify(ev),
           ts, // Добавляем ts как отдельный параметр $6
+        ]);
+        stored += r.rowCount || 0;
+      }
+
+      // Обработка console logs
+      for (let i = 0; i < consoleLogs.length; i++) {
+        const log = consoleLogs[i];
+        const timestamp = typeof log.timestamp === "number" ? log.timestamp : Date.now();
+        const logData = {
+          level: log.level || 'log',
+          message: log.message || '',
+          url: log.url || null,
+          source: 'console'
+        };
+
+        const r = await client.query(insertOne, [
+          sessionDbId,
+          events.length + i, // event_index для console logs начинается после обычных событий
+          timestamp,
+          5, // type 5 для console logs
+          JSON.stringify(logData),
+          timestamp
         ]);
         stored += r.rowCount || 0;
       }
