@@ -153,24 +153,29 @@ app.post("/rrweb/events", authMiddleware, async (req, res) => {
 
       // Сортируем все события по времени
       allEvents.sort((a, b) => a.timestamp - b.timestamp);
-      
-      console.log(`Processing ${allEvents.length} events for session ${sessionId}:`, 
-        allEvents.map(e => ({ type: e.type, timestamp: e.timestamp })));
-      
+
+      console.log(
+        `Processing ${allEvents.length} events for session ${sessionId}:`,
+        allEvents.map((e) => ({ type: e.type, timestamp: e.timestamp }))
+      );
+
       // Вставляем события с хронологическими индексами
       let stored = 0;
       for (let i = 0; i < allEvents.length; i++) {
         const event = allEvents[i];
         try {
+          const timestampForCreatedAt = event.timestamp; // Отдельная переменная для created_at
           const r = await client.query(insertOne, [
             sessionDbId,
             i, // Хронологический event_index
             event.timestamp,
             event.type,
             JSON.stringify(event.data),
-            event.timestamp,
+            timestampForCreatedAt, // Отдельная переменная для created_at
           ]);
-          console.log(`Inserted event ${i}: type=${event.type}, rows=${r.rowCount}`);
+          console.log(
+            `Inserted event ${i}: type=${event.type}, rows=${r.rowCount}`
+          );
           stored += r.rowCount || 0;
         } catch (insertError) {
           console.error(`Error inserting event ${i}:`, insertError.message);
