@@ -183,14 +183,18 @@ app.post("/rrweb/events", authMiddleware, async (req, res) => {
         }
       }
 
+      console.log(`About to commit transaction. Stored ${stored} events.`);
       await client.query("COMMIT");
+      console.log(`Transaction committed successfully. Returning ${stored} stored events.`);
       return res.status(201).json({ stored });
     } catch (e) {
+      console.error("Error in transaction, rolling back:", e);
       await client.query("ROLLBACK");
-      console.error(e);
+      console.error("Transaction rolled back");
       return res.status(500).json({ error: "insert_failed" });
     } finally {
       client.release();
+      console.log("Database connection released");
     }
   } catch (e) {
     console.error(e);
