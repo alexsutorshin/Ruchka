@@ -117,44 +117,53 @@ app.post("/rrweb/events", authMiddleware, async (req, res) => {
         "values ($1, $2, $3, $4, $5::jsonb, to_timestamp($6/1000.0))\n" +
         "on conflict (session_id, event_index) do nothing";
 
-      let stored = 0;
+      // Объединяем все события и сортируем по времени
+      const allEvents = [];
+      
+      // Добавляем обычные события
       for (let i = 0; i < events.length; i++) {
         const ev = events[i];
         const ts = typeof ev.timestamp === "number" ? ev.timestamp : Date.now();
-        const idx = typeof ev.__idx === "number" ? ev.__idx : i;
-        const type = Number.isFinite(ev.type) ? Number(ev.type) : 0;
-        const r = await client.query(insertOne, [
-          sessionDbId,
-          idx,
-          ts,
-          type,
-          JSON.stringify(ev),
-          ts, // Добавляем ts как отдельный параметр $6
-        ]);
-        stored += r.rowCount || 0;
+        allEvents.push({
+          type: Number.isFinite(ev.type) ? Number(ev.type) : 0,
+          timestamp: ts,
+          data: ev,
+          originalIndex: typeof ev.__idx === "number" ? ev.__idx : i
+        });
       }
-
-      // Обработка console logs
+      
+      // Добавляем console logs
       for (let i = 0; i < consoleLogs.length; i++) {
         const log = consoleLogs[i];
-        const timestamp =
-          typeof log.timestamp === "number" ? log.timestamp : Date.now();
+        const timestamp = typeof log.timestamp === "number" ? log.timestamp : Date.now();
         const logData = {
           level: log.level || "log",
           message: log.message || "",
           url: log.url || null,
           source: "console",
         };
-
-        // Используем уникальный индекс для console logs: -1000 - i
-        // Это гарантирует, что console logs не конфликтуют с обычными событиями
+        allEvents.push({
+          type: 5, // type 5 для console logs
+          timestamp: timestamp,
+          data: logData,
+          originalIndex: i
+        });
+      }
+      
+      // Сортируем все события по времени
+      allEvents.sort((a, b) => a.timestamp - b.timestamp);
+      
+      // Вставляем события с хронологическими индексами
+      let stored = 0;
+      for (let i = 0; i < allEvents.length; i++) {
+        const event = allEvents[i];
         const r = await client.query(insertOne, [
           sessionDbId,
-          -1000 - i, // Уникальный event_index для console logs
-          timestamp,
-          5, // type 5 для console logs
-          JSON.stringify(logData),
-          timestamp,
+          i, // Хронологический event_index
+          event.timestamp,
+          event.type,
+          JSON.stringify(event.data),
+          event.timestamp,
         ]);
         stored += r.rowCount || 0;
       }
