@@ -119,7 +119,7 @@ app.post("/rrweb/events", authMiddleware, async (req, res) => {
 
       // Объединяем все события и сортируем по времени
       const allEvents = [];
-      
+
       // Добавляем обычные события
       for (let i = 0; i < events.length; i++) {
         const ev = events[i];
@@ -128,14 +128,15 @@ app.post("/rrweb/events", authMiddleware, async (req, res) => {
           type: Number.isFinite(ev.type) ? Number(ev.type) : 0,
           timestamp: ts,
           data: ev,
-          originalIndex: typeof ev.__idx === "number" ? ev.__idx : i
+          originalIndex: typeof ev.__idx === "number" ? ev.__idx : i,
         });
       }
-      
+
       // Добавляем console logs
       for (let i = 0; i < consoleLogs.length; i++) {
         const log = consoleLogs[i];
-        const timestamp = typeof log.timestamp === "number" ? log.timestamp : Date.now();
+        const timestamp =
+          typeof log.timestamp === "number" ? log.timestamp : Date.now();
         const logData = {
           level: log.level || "log",
           message: log.message || "",
@@ -146,13 +147,13 @@ app.post("/rrweb/events", authMiddleware, async (req, res) => {
           type: 5, // type 5 для console logs
           timestamp: timestamp,
           data: logData,
-          originalIndex: i
+          originalIndex: i,
         });
       }
-      
+
       // Сортируем все события по времени
       allEvents.sort((a, b) => a.timestamp - b.timestamp);
-      
+
       // Вставляем события с хронологическими индексами
       let stored = 0;
       for (let i = 0; i < allEvents.length; i++) {
