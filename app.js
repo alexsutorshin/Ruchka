@@ -113,22 +113,20 @@ app.post("/rrweb/events", authMiddleware, async (req, res) => {
       const sessionDbId = sess.rows[0].id;
 
       const insertOne =
-        "insert into events (session_id, event_index, ts_ms, type, data, created_at)\n" +
-        "values ($1, $2, $3, $4, $5::jsonb, to_timestamp($6/1000.0))";
+        "insert into events (session_id, ts_ms, type, data, created_at)\n" +
+        "values ($1, $2, $3, $4::jsonb, to_timestamp($5/1000.0))";
 
       let stored = 0;
-      
+
       // Вставляем обычные события
       for (let i = 0; i < events.length; i++) {
         const ev = events[i];
         const ts = typeof ev.timestamp === "number" ? ev.timestamp : Date.now();
-        const idx = typeof ev.__idx === "number" ? ev.__idx : i;
         const type = Number.isFinite(ev.type) ? Number(ev.type) : 0;
         
         try {
           const r = await client.query(insertOne, [
             sessionDbId,
-            idx,
             ts,
             type,
             JSON.stringify(ev),
@@ -141,22 +139,22 @@ app.post("/rrweb/events", authMiddleware, async (req, res) => {
           throw insertError;
         }
       }
-      
+
       // Вставляем console logs
       for (let i = 0; i < consoleLogs.length; i++) {
         const log = consoleLogs[i];
-        const timestamp = typeof log.timestamp === "number" ? log.timestamp : Date.now();
+        const timestamp =
+          typeof log.timestamp === "number" ? log.timestamp : Date.now();
         const logData = {
           level: log.level || "log",
           message: log.message || "",
           url: log.url || null,
           source: "console",
         };
-        
+
         try {
           const r = await client.query(insertOne, [
             sessionDbId,
-            -1000 - i, // Используем отрицательные индексы для console logs
             timestamp,
             5, // type 5 для console logs
             JSON.stringify(logData),
@@ -165,7 +163,10 @@ app.post("/rrweb/events", authMiddleware, async (req, res) => {
           console.log(`Inserted console log ${i}: type=5, rows=${r.rowCount}`);
           stored += r.rowCount || 0;
         } catch (insertError) {
-          console.error(`Error inserting console log ${i}:`, insertError.message);
+          console.error(
+            `Error inserting console log ${i}:`,
+            insertError.message
+          );
           throw insertError;
         }
       }
@@ -199,7 +200,7 @@ app.get("/rrweb/sessions/:externalId/events", async (req, res) => {
     "from sessions s\n" +
     "join events e on e.session_id = s.id\n" +
     "where s.external_id = $1\n" +
-    "order by e.ts_ms asc\n" +
+    "order by e.created_at asc\n" +
     "limit $2";
   const { rows } = await pool.query(q, [externalId, limit]);
   res.json(rows);
