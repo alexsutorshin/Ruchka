@@ -146,9 +146,11 @@ app.post("/rrweb/events", authMiddleware, async (req, res) => {
           source: "console",
         };
 
+        // Используем уникальный индекс для console logs: -1000 - i
+        // Это гарантирует, что console logs не конфликтуют с обычными событиями
         const r = await client.query(insertOne, [
           sessionDbId,
-          events.length + i, // event_index для console logs начинается после обычных событий
+          -1000 - i, // Уникальный event_index для console logs
           timestamp,
           5, // type 5 для console logs
           JSON.stringify(logData),
